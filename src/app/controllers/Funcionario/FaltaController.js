@@ -4,12 +4,13 @@ import Endereco from "../../models/Endereco";
 import Funcionario from "../../models/Funcionario";
 import Salario from "../../models/Salario";
 import Falta from "../../models/Falta";
-import { startOfHour, endOfHour, parseISO, startOfDay, endOfDay } from 'date-fns'
+import { startOfHour, endOfHour, parseISO, startOfDay, endOfDay, startOfMonth, endOfMonth } from 'date-fns'
 import ValidarContacto from "../../utils/ValidarContacto";
 import ValidarUsuario from "../../utils/ValidarUsuario";
 import * as yup from "yup";
 import Usuario from "../../models/Usuario";
 import { Op } from "sequelize";
+import ValidarFuncionario from "../../utils/ValidarFuncionario";
 class FaltaController {
     async store(req, res) {
         try {
@@ -74,10 +75,22 @@ class FaltaController {
             offset = offset < 0 ? offset * -1 : offset;
             limit = limit < 0 ? limit * -1 : limit;
 
-            const { count: total, rows: funcionarios } = await Falta.findAndCountAll({
+            const funcionarioValido = await ValidarFuncionario.porId(funcionarioId);
+
+            if (!funcionarioValido) {
+                return res.status(402).json({ erro: "Funcionario Invalido!" })
+            }
+
+            const dataRecebida = new Date(new Date().setMonth(mes))
+            const inicioDoMes = startOfMonth(dataRecebida)
+            const fimDoMes = endOfMonth(dataRecebida)
+            console.log("RECEB", mes);
+            console.log("inicio", inicioDoMes, "fim:", fimDoMes);
+
+            const { count: total, rows: faltas } = await Falta.findAndCountAll({
                 offset,
                 limit,
-                where: { funcionarioId, },
+                where: { funcionarioId, createdAt: { [Op.between]: [inicioDoMes, fimDoMes], } },
                 attributes: ['id', "funcionarioId", "updatedAt", "createdAt", "justificado", "justificadoEm"],
                 order: [["updatedAt", "DESC"]],
                 include: [
